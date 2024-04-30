@@ -1,0 +1,2 @@
+ply==3.11
+terminaltables==3.1.10
