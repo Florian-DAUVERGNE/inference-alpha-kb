@@ -1,11 +1,12 @@
 import itertools
 import re
+
+from terminaltables import AsciiTable
 from AnalyseurSyntaxique import (
     convertir_mots_en_symboles,
     analyser_formule,
     afficher_aide,
 )
-from terminaltables import AsciiTable
 
 
 def convertir_formule(formule):
@@ -87,31 +88,37 @@ def generer_table_de_verite(expression):
     return table_de_verite
 
 
-def generer_tables_de_verite_commune(tables_de_verite, expression):
+def generer_tables_de_verite_commune(tables_de_verite, variables):
     """
-    Combine plusieurs tables de vérité en une seule en utilisant une expression commune.
+    Met la table de vérité alpha au même niveau de la table de vérité KB (même dimension) pour obtenir une table de vérité commune.
     """
     # Trouver le nombre maximal de lignes parmi les tables de vérité
-    nbr_lignes = max(len(table) for table in tables_de_verite)
-
-    # Trouver les variables dans l'expression
-    variables = sorted(set(re.findall(r"[A-Za-z]", expression)))
+    nbr_lignes = len(list(set(variables[0] + variables[1])))
 
     # Initialiser une liste pour les tables de vérité combinées
-    tables_combinees = []
+    tables_combinees = list(itertools.product([0, 1], repeat=nbr_lignes))
 
-    # Pour chaque ligne dans la table de vérité
-    for i in range(nbr_lignes):
-        # Sélectionner la valeur de vérité de la i-ème ligne pour chaque table
-        valeurs_combinees = [table[i % len(table)] for table in tables_de_verite]
+    # Initialisation de la table de vérité combinée
+    table_de_verite_combinee = []
 
-        # Ajouter les valeurs de vérité combinées à la table de vérité combinée
-        tables_combinees.append(valeurs_combinees)
+    # Pour chaque ligne dans la table de vérité de KB
+    for lignes in tables_combinees:
+        valeurs = list(lignes)
+        # Sélectionner les valeurs de vérité correspondantes pour les variables KB
+        valeurs_KB = tables_de_verite[0][
+            [x[:-1] for x in tables_de_verite[0]].index(
+                valeurs[:len(variables[0])])
+        ][-1]
+        # Sélectionner les valeurs de vérité correspondantes pour les variables alpha
+        valeurs_alpha = tables_de_verite[1][
+            [x[:-1] for x in tables_de_verite[1]].index(
+                [valeurs[variables[0].index(x)] for x in variables[1] if x in variables[0]] +
+                valeurs[len(variables[0]):])
+        ][-1]
+         # Ajouter les valeurs de vérité de KB et alpha à la table de vérité combinée
+        table_de_verite_combinee.append(valeurs + [valeurs_KB] + [valeurs_alpha])
 
-    return tables_combinees
-
-
-import re
+    return table_de_verite_combinee
 
 
 def demontrer_theoreme(
@@ -120,38 +127,29 @@ def demontrer_theoreme(
     """
     Démontre si l'expression alpha est conséquence logique de l'ensemble de clauses KB.
     """
-    # Combinaison des tables de vérité de KB et alpha en utilisant l'expression alpha
-    table_de_verite_alpha = generer_tables_de_verite_commune(
-        [table_de_verite_KB, table_de_verite_alpha], expressions_alpha
-    )
-
     # Trouver les variables de KB et alpha
     variables_KB = sorted(set(re.findall(r"[A-Za-z]", expressions_KB)))
     variables_alpha = sorted(set(re.findall(r"[A-Za-z]", expressions_alpha)))
 
-    # Fusionner les variables de KB et alpha sans doublons
-    variables_KB = list(set(variables_KB + variables_alpha))
-
-    # Initialisation de la table de vérité combinée
-    table_de_verite_combinee = []
-
-    # Pour chaque ligne dans la table de vérité de KB
-    for lignes in table_de_verite_KB:
-        # Sélectionner les valeurs de vérité correspondantes pour les variables alpha
-        valeurs_alpha = [
-            lignes[variables_KB.index(variables_alpha[i])]
-            for i in range(len(variables_alpha))
-        ]
-        # Ajouter les valeurs de vérité de KB et alpha à la table de vérité combinée
-        table_de_verite_combinee.append(valeurs_alpha + [lignes[-1]])
+    # Combinaison des tables de vérité de KB et alpha en utilisant l'expression alpha
+    table_de_verite_combinee = generer_tables_de_verite_commune(
+        [table_de_verite_KB, table_de_verite_alpha], [variables_KB, variables_alpha]
+    )
 
     # Trier les tables de vérité combinées selon les valeurs de vérité des variables alpha
     table_de_verite_combinee = sorted(table_de_verite_combinee, key=lambda x: x[:-1])
-    table_de_verite_alpha = sorted(table_de_verite_alpha, key=lambda x: x[:-1])
+
+    # Titres des colonnes de la table (variables + expression)
+    titre_des_colonnes = sorted(set(variables_KB + variables_alpha))
+    titre_des_colonnes.append(expressions_KB)
+    titre_des_colonnes.append(expressions_alpha)
+
+    # Afficher la table de vérité avec AsciiTable
+    print(AsciiTable([titre_des_colonnes] + table_de_verite_combinee).table)
 
     # Comparer les tables de vérité combinées et alpha pour vérifier la conséquence logique
-    for kb, alpha in zip(table_de_verite_combinee, table_de_verite_alpha):
-        if kb[-1] == 1 and alpha[-1] == 0:
+    for lignes in table_de_verite_combinee:
+        if lignes[-2] == 1 and lignes[-1] == 0:
             print("KB /|= α")  # KB n'implique pas alpha
             return
     print("KB |= α")  # KB implique alpha
@@ -194,7 +192,6 @@ def verifier_formule(formule):
         print("Formule incorrecte : {}".format(formule))
         quit()
 
-
 # Affiche l'aide
 afficher_aide()
 
@@ -209,8 +206,6 @@ while nb_formules <= 0:
             print("Veuillez entrer un nombre supérieur à 0")
     except ValueError:
         print("Veuillez entrer un nombre")
-
-
 
 i = 1
 # Saisie de la première formule pour KB
@@ -246,6 +241,13 @@ if formule == False:
 # Construction de la chaîne de caractères pour Alpha
 alpha = f"({formule})"
 
+# vérifier qu'à minima un atome est à la fois présent dans KB et Alpha pour faire le lien
+atome_commun = sorted(set(re.findall(r"[A-Za-z]", alpha))) + sorted(set(re.findall(r"[A-Za-z]", kb)))
+occurences = [True if atome_commun.count(x) > 1 else False for x in atome_commun]
+if (True not in occurences):
+    print("Veuillez entrer un atome commun à KB et Alpha")
+    quit()
+
 # Vérifie si la formule Alpha est correcte
 verifier_formule(alpha)
 
@@ -255,4 +257,3 @@ alpha_truth_table = generer_table_de_verite(alpha)
 
 # Démonstration du théorème
 demontrer_theoreme(kb_truth_table, alpha_truth_table, kb, alpha)
-

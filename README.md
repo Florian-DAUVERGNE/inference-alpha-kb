@@ -53,14 +53,15 @@ Exemple KB /|= α: KB1 = A | B, KB2 = ~C | A, alpha = A & C
 ## Structure du Projet
 
 - `AnalyseurSyntaxique.py` : Code du projet `verificateur-syntaxique`. Utilisé pour la saisie des formules de KB et alpha
-- `Grammaire.py` : Contient le lexer et le parser PLY pour analyser les formules logiques.
--`Inference.py` : Le script principal qui gère l'interaction avec l'utilisateur et le système d'inférence de propositions.
+- `Grammaire.py` : Contient le lexer et le parser PLY pour analyser les formules logiques
+- `Inference.py` : Le script principal qui gère l'interaction avec l'utilisateur et le système d'inférence de propositions.
 
 ## Bibliothèque
 ply : https://github.com/dabeaz/ply
 
 terminaltables : https://pypi.org/project/terminaltables/
 
+itertools : https://docs.python.org/3/library/itertools.html
 ## Ressources
 Logic and Reasoning R&N 7-9 : https://www.cs.cmu.edu/afs/cs/academic/class/15381-s07/www/slides/022707reasoning.pdf
 
